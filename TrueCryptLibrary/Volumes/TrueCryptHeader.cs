@@ -171,8 +171,8 @@ namespace TrueCryptLibrary
 
         public static List<KeyValuePairList<SymmetricAlgorithm, byte[]>> GetAlgorithms(byte[] key)
         {
+            // AesCryptoServiceProvider will use AES-NI if availible, but Rijndael is almost 3 times faster if AES-NI is not available.
             Rijndael aes = Rijndael.Create();
-            // http://social.msdn.microsoft.com/Forums/vstudio/en-US/aa02f456-db79-4cf0-9cee-4e04c0ac11a8/strange-behaviour-with-transformblock-and-rijndaelmanaged
             aes.Padding = PaddingMode.None;
             aes.Mode = CipherMode.ECB;
 
