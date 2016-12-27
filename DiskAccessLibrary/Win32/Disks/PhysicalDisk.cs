@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
+/* Copyright (C) 2014-2016 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
  * 
  * You can redistribute this program and/or modify it under the terms of
  * the GNU Lesser Public License as published by the Free Software Foundation,
@@ -24,6 +24,8 @@ namespace DiskAccessLibrary
         private int m_physicalDiskIndex;
         private int m_bytesPerSector;
         private long m_size;
+        private string m_description;
+        private string m_serialNumber;
 
         // CHS:
         private long m_cylinders;
@@ -34,6 +36,7 @@ namespace DiskAccessLibrary
         {
             m_physicalDiskIndex = physicalDiskIndex;
             PopulateDiskInfo(); // We must do it before any read request use the disk handle
+            PopulateDescription();
         }
 
         public override byte[] ReadSectors(long sectorIndex, int sectorCount)
@@ -68,12 +71,18 @@ namespace DiskAccessLibrary
             {
                 FileStreamEx stream = new FileStreamEx(handle, FileAccess.Read);
                 byte[] buffer = new byte[m_bytesPerSector * sectorCount];
-                stream.Seek(sectorIndex * m_bytesPerSector, SeekOrigin.Begin);
-                stream.Read(buffer, 0, m_bytesPerSector * sectorCount);
-                stream.Close(releaseHandle);
-                if (releaseHandle)
+                try
                 {
-                    PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
+                    stream.Seek(sectorIndex * m_bytesPerSector, SeekOrigin.Begin);
+                    stream.Read(buffer, 0, m_bytesPerSector * sectorCount);
+                }
+                finally
+                {
+                    stream.Close(releaseHandle);
+                    if (releaseHandle)
+                    {
+                        PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
+                    }
                 }
                 return buffer;
             }
@@ -82,9 +91,9 @@ namespace DiskAccessLibrary
                 // we always release invalid handle
                 PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
                 // get error code and throw
-                int error = Marshal.GetLastWin32Error();
-                string message = String.Format("Can't read sector {0} from disk {1}, Win32 Error: {2}", sectorIndex, m_physicalDiskIndex, error);
-                throw new IOException(message);
+                int errorCode = Marshal.GetLastWin32Error();
+                string message = String.Format("Can't read sector {0} from disk {1}, Win32 Error: {2}", sectorIndex, m_physicalDiskIndex, errorCode);
+                throw new IOException(message, errorCode);
             }
         }
 
@@ -130,13 +139,19 @@ namespace DiskAccessLibrary
             if (!handle.IsInvalid)
             {
                 FileStreamEx stream = new FileStreamEx(handle, FileAccess.Write);
-                stream.Seek(sectorIndex * m_bytesPerSector, SeekOrigin.Begin);
-                stream.Write(data, 0, data.Length);
-                stream.Flush();
-                stream.Close(releaseHandle);
-                if (releaseHandle)
+                try
                 {
-                    PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
+                    stream.Seek(sectorIndex * m_bytesPerSector, SeekOrigin.Begin);
+                    stream.Write(data, 0, data.Length);
+                    stream.Flush();
+                }
+                finally
+                {
+                    stream.Close(releaseHandle);
+                    if (releaseHandle)
+                    {
+                        PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
+                    }
                 }
             }
             else
@@ -144,17 +159,9 @@ namespace DiskAccessLibrary
                 // we always release invalid handle
                 PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
                 // get error code and throw
-                int error = Marshal.GetLastWin32Error();
-                if (error == (int)Win32Error.ERROR_SHARING_VIOLATION)
-                {
-                    string message = String.Format("Can't write to disk {0}", m_physicalDiskIndex);
-                    throw new SharingViolationException(message);
-                }
-                else
-                {
-                    string message = String.Format("Can't write to sector {0} of disk {1}, Win32 error: {2}", sectorIndex, m_physicalDiskIndex, error);
-                    throw new IOException(message);
-                }
+                int errorCode = Marshal.GetLastWin32Error();
+                string message = String.Format("Can't write to sector {0} of disk {1}", sectorIndex, m_physicalDiskIndex);
+                FileStreamEx.ThrowIOError(errorCode, message);
             }
         }
 
@@ -186,13 +193,17 @@ namespace DiskAccessLibrary
             return PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
         }
 
+        /// <summary>
+        /// Invalidates the cached partition table and re-enumerates the device
+        /// </summary>
+        /// <exception cref="System.IO.IOException"></exception>
         public void UpdateProperties()
         {
             bool releaseHandle;
             SafeFileHandle handle = PhysicalDiskHandlePool.ObtainHandle(m_physicalDiskIndex, FileAccess.ReadWrite, ShareMode.Read, out releaseHandle);
             if (!handle.IsInvalid)
             {
-                bool success = PhysicalDiskUtils.UpdateDiskProperties(handle);
+                bool success = PhysicalDiskControl.UpdateDiskProperties(handle);
                 if (!success)
                 {
                     throw new IOException("Failed to update disk properties");
@@ -215,7 +226,11 @@ namespace DiskAccessLibrary
             SafeFileHandle handle = PhysicalDiskHandlePool.ObtainHandle(m_physicalDiskIndex, FileAccess.Read, ShareMode.ReadWrite, out releaseHandle);
             if (!handle.IsInvalid)
             {
-                DISK_GEOMETRY diskGeometry = PhysicalDiskUtils.GetDiskGeometryAndSize(handle, out m_size);
+                if (!PhysicalDiskControl.IsMediaAccesible(handle))
+                {
+                    throw new DeviceNotReadyException();
+                }
+                DISK_GEOMETRY diskGeometry = PhysicalDiskControl.GetDiskGeometryAndSize(handle, out m_size);
                 if (releaseHandle)
                 {
                     PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
@@ -233,27 +248,47 @@ namespace DiskAccessLibrary
                 PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
 
                 // get error code and throw
-                int error = Marshal.GetLastWin32Error();
-                if (error == (int)Win32Error.ERROR_FILE_NOT_FOUND)
+                int errorCode = Marshal.GetLastWin32Error();
+                string message = String.Format("Can't read from disk {0}", m_physicalDiskIndex);
+                if (errorCode == (int)Win32Error.ERROR_FILE_NOT_FOUND)
                 {
-                    string message = String.Format("Can't read from disk {0}", m_physicalDiskIndex);
                     throw new DriveNotFoundException(message);
-                }
-                else if (error == (int)Win32Error.ERROR_ACCESS_DENIED)
-                {
-                    string message = String.Format("Can't read from disk {0}", m_physicalDiskIndex);
-                    // SecurityException will be thrown if user is not an administrator
-                    throw new SecurityException(message);
-                }
-                else if (error == (int)Win32Error.ERROR_SHARING_VIOLATION)
-                {
-                    string message = String.Format("Can't read from disk {0}", m_physicalDiskIndex);
-                    throw new SharingViolationException(message);
                 }
                 else
                 {
-                    string message = String.Format("Can't read from disk {0}, Win32 Error: {1}", m_physicalDiskIndex, error);
-                    throw new IOException(message);
+                    FileStreamEx.ThrowIOError(errorCode, message);
+                }
+            }
+        }
+
+        private void PopulateDescription()
+        {
+            bool releaseHandle;
+            SafeFileHandle handle = PhysicalDiskHandlePool.ObtainHandle(m_physicalDiskIndex, FileAccess.Read, ShareMode.ReadWrite, out releaseHandle);
+            if (!handle.IsInvalid)
+            {
+                m_description = PhysicalDiskControl.GetDeviceDescription(handle);
+                m_serialNumber = PhysicalDiskControl.GetDeviceSerialNumber(handle);
+                if (releaseHandle)
+                {
+                    PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
+                }
+            }
+            else
+            {
+                // we always release invalid handle
+                PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
+
+                // get error code and throw
+                int errorCode = Marshal.GetLastWin32Error();
+                string message = String.Format("Can't read from disk {0}", m_physicalDiskIndex);
+                if (errorCode == (int)Win32Error.ERROR_FILE_NOT_FOUND)
+                {
+                    throw new DriveNotFoundException(message);
+                }
+                else
+                {
+                    FileStreamEx.ThrowIOError(errorCode, message);
                 }
             }
         }
@@ -270,13 +305,14 @@ namespace DiskAccessLibrary
         /// <summary>
         /// Available on Windows Vista and newer
         /// </summary>
+        /// <exception cref="System.IO.IOException"></exception>
         public bool GetOnlineStatus(out bool isReadOnly)
         {
             bool releaseHandle;
             SafeFileHandle handle = PhysicalDiskHandlePool.ObtainHandle(m_physicalDiskIndex, FileAccess.ReadWrite, ShareMode.Read, out releaseHandle);
             if (!handle.IsInvalid)
             {
-                bool isOnline = PhysicalDiskUtils.GetOnlineStatus(handle, out isReadOnly);
+                bool isOnline = PhysicalDiskControl.GetOnlineStatus(handle, out isReadOnly);
                 if (releaseHandle)
                 {
                     PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
@@ -289,8 +325,8 @@ namespace DiskAccessLibrary
                 PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
 
                 // get error code and throw
-                int error = Marshal.GetLastWin32Error();
-                string message = String.Format("Can't get disk {0} online status, Win32 Error: {1}", m_physicalDiskIndex, error);
+                int errorCode = Marshal.GetLastWin32Error();
+                string message = String.Format("Can't get disk {0} online status, Win32 Error: {1}", m_physicalDiskIndex, errorCode);
                 throw new IOException(message);
             }
         }
@@ -306,13 +342,14 @@ namespace DiskAccessLibrary
         /// <summary>
         /// Available on Windows Vista and newer
         /// </summary>
+        /// <exception cref="System.IO.IOException"></exception>
         public bool SetOnlineStatus(bool online, bool persist)
         {
             bool releaseHandle;
             SafeFileHandle handle = PhysicalDiskHandlePool.ObtainHandle(m_physicalDiskIndex, FileAccess.ReadWrite, ShareMode.Read, out releaseHandle);
             if (!handle.IsInvalid)
             {
-                bool success = PhysicalDiskUtils.SetOnlineStatus(handle, online, persist);
+                bool success = PhysicalDiskControl.SetOnlineStatus(handle, online, persist);
                 if (releaseHandle)
                 {
                     PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
@@ -324,14 +361,14 @@ namespace DiskAccessLibrary
                 // we always release invalid handle
                 PhysicalDiskHandlePool.ReleaseHandle(m_physicalDiskIndex);
 
-                int error = Marshal.GetLastWin32Error();
-                if (error == (int)Win32Error.ERROR_SHARING_VIOLATION)
+                int errorCode = Marshal.GetLastWin32Error();
+                if (errorCode == (int)Win32Error.ERROR_SHARING_VIOLATION)
                 {
                     return false;
                 }
                 else
                 {
-                    string message = String.Format("Can't take disk {0} offline, Win32 Error: {1}", m_physicalDiskIndex, error);
+                    string message = String.Format("Can't take disk {0} offline, Win32 Error: {1}", m_physicalDiskIndex, errorCode);
                     throw new IOException(message);
                 }
             }
@@ -358,6 +395,22 @@ namespace DiskAccessLibrary
             get
             {
                 return m_physicalDiskIndex;
+            }
+        }
+
+        public string Description
+        {
+            get
+            {
+                return m_description;
+            }
+        }
+
+        public string SerialNumber
+        {
+            get
+            {
+                return m_serialNumber;
             }
         }
 

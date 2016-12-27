@@ -17,7 +17,7 @@ namespace DiskAccessLibrary
         public static List<PhysicalDisk> GetPhysicalDisks()
         {
             List<PhysicalDisk> result = new List<PhysicalDisk>();
-            List<int> diskIndexList = PhysicalDiskUtils.GetPhysicalDiskIndexList();
+            List<int> diskIndexList = PhysicalDiskControl.GetPhysicalDiskIndexList();
             foreach (int diskIndex in diskIndexList)
             {
                 PhysicalDisk disk;
@@ -28,6 +28,10 @@ namespace DiskAccessLibrary
                 catch (DriveNotFoundException)
                 {
                     // The disk must have been removed from the system
+                    continue;
+                }
+                catch (DeviceNotReadyException)
+                {
                     continue;
                 }
                 catch (SharingViolationException) // skip this disk, it's probably being used

@@ -23,17 +23,19 @@ namespace DiskAccessLibrary
 
         private Guid m_volumeGuid;
         private Guid m_typeGuid;
+        private string m_name;
 
-        public GPTPartition(Guid volumeGuid, Guid typeGuid, DiskExtent extent) : base(extent)
+        public GPTPartition(Guid volumeGuid, Guid typeGuid, string name, DiskExtent extent) : base(extent)
         {
             m_volumeGuid = volumeGuid;
             m_typeGuid = typeGuid;
         }
 
-        public GPTPartition(Guid volumeGuid, Guid typeGuid, Disk disk, long firstSector, long size) : base(disk, firstSector, size)
+        public GPTPartition(Guid volumeGuid, Guid typeGuid, string name, Disk disk, long firstSector, long size) : base(disk, firstSector, size)
         {
             m_volumeGuid = volumeGuid;
             m_typeGuid = typeGuid;
+            m_name = name;
         }
 
         public Guid VolumeGuid
@@ -89,6 +91,14 @@ namespace DiskAccessLibrary
                 {
                     return "Unknown";
                 }
+            }
+        }
+
+        public string PartitionName
+        {
+            get
+            {
+                return m_name;
             }
         }
     }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
+/* Copyright (C) 2014-2016 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
  * 
  * You can redistribute this program and/or modify it under the terms of
  * the GNU Lesser Public License as published by the Free Software Foundation,
@@ -15,13 +15,20 @@ namespace DiskAccessLibrary
 {
     public partial class VirtualMachineDisk : DiskImage, IDiskGeometry
     {
+        // VMDK sector size is set to 512 bytes.
+        public const int BytesPerDiskSector = 512;
+
         private const uint BaseDiskParentCID = 0xffffffff;
 
         private string m_descriptorPath;
         private VirtualMachineDiskDescriptor m_descriptor;
-        
-        private Disk m_extent;
 
+        private DiskImage m_extent;
+
+        /// <exception cref="System.IO.IOException"></exception>
+        /// <exception cref="System.IO.InvalidDataException"></exception>
+        /// <exception cref="System.NotImplementedException"></exception>
+        /// <exception cref="System.UnauthorizedAccessException"></exception>
         public VirtualMachineDisk(string descriptorPath) : base(descriptorPath)
         {
             m_descriptorPath = descriptorPath;
@@ -85,9 +92,19 @@ namespace DiskAccessLibrary
             {
                 VirtualMachineDiskExtentEntry entry = m_descriptor.ExtentEntries[0];
                 string directory = System.IO.Path.GetDirectoryName(descriptorPath);
-                DiskImage extent = new RawDiskImage(directory + @"\" + entry.FileName);
+                DiskImage extent = new RawDiskImage(directory + @"\" + entry.FileName, BytesPerDiskSector);
                 m_extent = extent;
             }
+        }
+
+        public override bool ExclusiveLock()
+        {
+            return m_extent.ExclusiveLock();
+        }
+
+        public override bool ReleaseLock()
+        {
+            return m_extent.ReleaseLock();
         }
 
         public override byte[] ReadSectors(long sectorIndex, int sectorCount)
@@ -104,17 +121,17 @@ namespace DiskAccessLibrary
             m_extent.WriteSectors(sectorIndex, data);
         }
 
-        public override void Extend(long additionalNumberOfBytes)
+        public override void Extend(long numberOfAdditionalBytes)
         {
             if (m_descriptor.DiskType == VirtualMachineDiskType.MonolithicFlat)
             {
                 // Add updated extent entries
                 List<string> lines = VirtualMachineDiskDescriptor.ReadASCIITextLines(m_descriptorPath);
-                m_descriptor.ExtentEntries[0].SizeInSectors += additionalNumberOfBytes / this.BytesPerSector;
+                m_descriptor.ExtentEntries[0].SizeInSectors += numberOfAdditionalBytes / this.BytesPerSector;
                 m_descriptor.UpdateExtentEntries(lines);
 
                 File.WriteAllLines(m_descriptorPath, lines.ToArray(), Encoding.ASCII);
-                ((DiskImage)m_extent).Extend(additionalNumberOfBytes);
+                ((DiskImage)m_extent).Extend(numberOfAdditionalBytes);
             }
             else
             {
@@ -126,7 +143,7 @@ namespace DiskAccessLibrary
         {
             get
             {
-                return DiskImage.BytesPerDiskImageSector;
+                return BytesPerDiskSector;
             }
         }
 
