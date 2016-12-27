@@ -254,7 +254,7 @@ namespace TrueResize
                 m_bytesToFill = additionalNumberOfSectors * m_disk.BytesPerSector;
                 try
                 {
-                    m_disk.ExtendFast(m_bytesToFill);
+                    m_disk.Extend(m_bytesToFill);
                 }
                 catch (IOException ex)
                 {
