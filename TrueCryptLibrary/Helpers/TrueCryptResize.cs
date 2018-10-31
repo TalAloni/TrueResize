@@ -29,8 +29,16 @@ namespace TrueCryptLibrary
                 return TrueCryptResizeStatus.HiddenVolume;
             }
 
-            NTFSVolume ntfsVolume = new NTFSVolume(volume);
-            if (!ntfsVolume.IsValidAndSupported)
+            NTFSVolume ntfsVolume;
+            try
+            {
+                ntfsVolume = new NTFSVolume(volume);
+            }
+            catch (InvalidDataException)
+            {
+                return TrueCryptResizeStatus.UnsupportedFileSystem;
+            }
+            catch (NotSupportedException)
             {
                 return TrueCryptResizeStatus.UnsupportedFileSystem;
             }

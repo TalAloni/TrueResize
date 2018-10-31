@@ -227,10 +227,16 @@ namespace TrueResize
             bool partitionTablePresent = m_partition is MBRPartition || m_partition is GPTPartition;
             AddRowToListDetails("Partition table present", partitionTablePresent ? "Yes" : "No");
             AddRowToListDetails("Volume size", m_volume.Header.VolumeSize.ToString("#,0") + " bytes");
-            NTFSVolume ntfsVolume = new NTFSVolume(m_volume);
-            m_isSupportedFileSystem = ntfsVolume.IsValidAndSupported;
             AddRowToListDetails("Volume type", m_volume.IsHiddenVolume ? "Hidden" : "Normal" );
-            AddRowToListDetails("File system", ntfsVolume.IsValidAndSupported ? "NTFS" : "Unsupported");
+            NTFSVolume ntfsVolume = null;
+            try
+            {
+                ntfsVolume = new NTFSVolume(m_volume);
+            }
+            catch
+            {
+            }
+            AddRowToListDetails("File system", (ntfsVolume != null) ? "NTFS" : "Unsupported");
         }
 
         private void ResizeVolume()
