@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Utilities;
@@ -19,7 +20,7 @@ namespace TrueCryptLibrary
         private TrueCryptHeader m_header;
         private bool m_isHiddenVolume = false;
 
-        public TrueCryptVolume(Volume volume, string password) : this(volume, UTF8Encoding.UTF8.GetBytes(password))
+        public TrueCryptVolume(Volume volume, string password) : this(volume, Encoding.UTF8.GetBytes(password))
         {
         }
 
@@ -37,6 +38,16 @@ namespace TrueCryptLibrary
                     m_isHiddenVolume = true;
                 }
             }
+
+            if (!m_header.IsValid)
+            {
+                throw new InvalidDataException("Invalid TrueCrypt volume or incorrect password");
+            }
+
+            if (!m_header.IsSupported)
+            {
+                throw new NotSupportedException("Unsupported TrueCrypt volume format version");
+            }
         }
 
         private void ReadHeader(long volumeHeaderOffset)
@@ -48,10 +59,6 @@ namespace TrueCryptLibrary
 
         public override byte[] ReadSectors(long sectorIndex, int sectorCount)
         {
-            if (!this.IsValidAndSupported)
-            {
-                throw new Exception("Invalid TrueCrypt Volume");
-            }
             CheckBoundaries(sectorIndex, sectorCount);
 
             long imageSectorIndex = sectorIndex + (long)m_header.MasterKeyScopeOffset / m_volume.BytesPerSector;
@@ -65,10 +72,6 @@ namespace TrueCryptLibrary
 
         public override void WriteSectors(long sectorIndex, byte[] data)
         {
-            if (!this.IsValidAndSupported)
-            {
-                throw new Exception("Invalid TrueCrypt Volume");
-            }
             CheckBoundaries(sectorIndex, data.Length / this.BytesPerSector);
 
             int sectorCount = data.Length / m_volume.BytesPerSector;
@@ -94,7 +97,7 @@ namespace TrueCryptLibrary
         {
             get
             {
-                if (IsValidAndSupported && m_header.FormatVersion >= 5)
+                if (m_header.FormatVersion >= 5)
                 {
                     // Only physical disks can have SectorSize != 512
                     return (int)m_header.SectorSize;
@@ -119,14 +122,6 @@ namespace TrueCryptLibrary
             get
             {
                 return m_header;
-            }
-        }
-
-        public bool IsValidAndSupported
-        {
-            get
-            {
-                return m_header.IsValid && m_header.IsSupported;
             }
         }
 

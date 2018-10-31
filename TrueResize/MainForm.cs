@@ -97,21 +97,25 @@ namespace TrueResize
                                 MessageBox.Show("Partition table does not contain a valid partition", "Error");
                                 return;
                             }
-                            m_volume = new TrueCryptVolume(m_partition, m_password);
-                            if (m_volume.Header.IsValid && !m_volume.Header.IsSupported)
+
+                            try
                             {
-                                MessageBox.Show("Unsupported truecrypt volume format version", "Error");
+                                m_volume = new TrueCryptVolume(m_partition, m_password);
                             }
-                            else if (!m_volume.IsValidAndSupported)
+                            catch (InvalidDataException)
                             {
-                                MessageBox.Show("Invalid password", "Error");
+                                MessageBox.Show("Invalid TrueCrypt volume or incorrect password", "Error");
+                                return;
                             }
-                            else
+                            catch (NotSupportedException)
                             {
-                                ListDiskDetails();
-                                tabControl1.SelectedTab = tabControl1.TabPages[1];
-                                btnBack.Enabled = true;
+                                MessageBox.Show("Unsupported TrueCrypt volume format version", "Error");
+                                return;
                             }
+
+                            ListDiskDetails();
+                            tabControl1.SelectedTab = tabControl1.TabPages[1];
+                            btnBack.Enabled = true;
                         }
                         break;
                     }

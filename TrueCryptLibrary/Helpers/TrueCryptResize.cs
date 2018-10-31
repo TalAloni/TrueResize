@@ -13,15 +13,18 @@ namespace TrueCryptLibrary
         public static TrueCryptResizeStatus ExtendVolumeAndFileSystem(Disk disk, byte[] password, long additionalNumberOfSectors)
         {
             Volume partition = VolumeSelectionHelper.GetLastPartition(disk);
-            TrueCryptVolume volume = new TrueCryptVolume(partition, password);
-            if (volume.Header.IsValid && !volume.Header.IsSupported)
+            TrueCryptVolume volume;
+            try
             {
-                return TrueCryptResizeStatus.UnsupportedFormatVersion;
+                volume = new TrueCryptVolume(partition, password);
             }
-
-            if (!volume.IsValidAndSupported)
+            catch (InvalidDataException)
             {
                 return TrueCryptResizeStatus.InvalidDisk;
+            }
+            catch (NotSupportedException)
+            {
+                return TrueCryptResizeStatus.UnsupportedFormatVersion;
             }
 
             if (volume.IsHiddenVolume)
@@ -68,11 +71,18 @@ namespace TrueCryptLibrary
         public static TrueCryptResizeStatus ExtendVolume(Disk disk, byte[] password, long additionalNumberOfSectors)
         {
             Partition partition = VolumeSelectionHelper.GetLastPartition(disk);
-            TrueCryptVolume volume = new TrueCryptVolume(partition, password);
-
-            if (!volume.IsValidAndSupported)
+            TrueCryptVolume volume;
+            try
+            {
+                volume = new TrueCryptVolume(partition, password);
+            }
+            catch (InvalidDataException)
             {
                 return TrueCryptResizeStatus.InvalidDisk;
+            }
+            catch (NotSupportedException)
+            {
+                return TrueCryptResizeStatus.UnsupportedFormatVersion;
             }
 
             if (volume.IsHiddenVolume)
