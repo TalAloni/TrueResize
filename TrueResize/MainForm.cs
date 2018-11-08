@@ -240,6 +240,7 @@ namespace TrueResize
             catch
             {
             }
+            m_isSupportedFileSystem = (ntfsVolume != null);
             AddRowToListDetails("File system", (ntfsVolume != null) ? "NTFS" : "Unsupported");
         }
 
