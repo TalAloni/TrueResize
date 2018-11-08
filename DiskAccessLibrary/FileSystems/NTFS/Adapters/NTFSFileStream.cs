@@ -17,11 +17,17 @@ namespace DiskAccessLibrary.FileSystems.NTFS
     public class NTFSFileStream : Stream
     {
         private NTFSFile m_file;
+        private bool m_canRead;
+        private bool m_canWrite;
         private long m_position;
 
-        public NTFSFileStream(NTFSFile file)
+        public event EventHandler Closed;
+
+        public NTFSFileStream(NTFSFile file, FileAccess access)
         {
             m_file = file;
+            m_canRead = (access & FileAccess.Read) != 0;
+            m_canWrite = (access & FileAccess.Write) != 0;
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -49,6 +55,10 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if (!m_canRead)
+            {
+                throw new AccessViolationException("Stream was not opened for read access");
+            }
             byte[] data = m_file.ReadData((ulong)m_position, count);
             Array.Copy(data, 0, buffer, offset, data.Length);
             m_position += data.Length;
@@ -57,10 +67,24 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            if (!CanWrite)
+            {
+                throw new AccessViolationException("Stream was not opened for write access");
+            }
             byte[] data = new byte[count];
             Array.Copy(buffer, offset, data, 0, count);
             m_file.WriteData((ulong)m_position, data);
             m_position += count;
+        }
+
+        public override void Close()
+        {
+            base.Close();
+            EventHandler handler = Closed;
+            if (handler != null)
+            {
+                handler(this, EventArgs.Empty);
+            }
         }
 
         public override void Flush()
@@ -92,7 +116,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         {
             get
             {
-                return true;
+                return m_canRead;
             }
         }
 
@@ -108,7 +132,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         {
             get
             {
-                return true;
+                return m_canWrite;
             }
         }
     }
