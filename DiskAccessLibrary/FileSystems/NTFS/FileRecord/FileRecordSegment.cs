@@ -93,7 +93,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             m_segmentNumber = segmentNumber;
         }
 
-        public byte[] GetBytes(int bytesPerFileRecordSegment, ushort minorNTFSVersion, bool applyUsaProtection)
+        public byte[] GetBytes(int bytesPerFileRecordSegment, byte minorNTFSVersion, bool applyUsaProtection)
         {
             int strideCount = bytesPerFileRecordSegment / MultiSectorHelper.BytesPerStride;
             ushort updateSequenceArraySize = (ushort)(1 + strideCount);
@@ -153,7 +153,13 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public AttributeRecord CreateAttributeRecord(AttributeType type, string name)
         {
-            AttributeRecord attribute = AttributeRecord.Create(type, name, NextAttributeInstance);
+            bool isResident = (type != AttributeType.IndexAllocation);
+            return CreateAttributeRecord(type, name, isResident);
+        }
+
+        internal AttributeRecord CreateAttributeRecord(AttributeType type, string name, bool isResident)
+        {
+            AttributeRecord attribute = AttributeRecord.Create(type, name, NextAttributeInstance, isResident);
             NextAttributeInstance++;
             FileRecordHelper.InsertSorted(m_immediateAttributes, attribute);
             return attribute;
@@ -161,18 +167,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public AttributeRecord CreateAttributeListRecord(bool isResident)
         {
-            AttributeRecord attribute;
-            if (isResident)
-            {
-                attribute = AttributeRecord.Create(AttributeType.AttributeList, String.Empty, NextAttributeInstance);
-            }
-            else
-            {
-                attribute = NonResidentAttributeRecord.Create(AttributeType.AttributeList, String.Empty, NextAttributeInstance);
-            }
-            NextAttributeInstance++;
-            FileRecordHelper.InsertSorted(m_immediateAttributes, attribute);
-            return attribute;
+            return CreateAttributeRecord(AttributeType.AttributeList, String.Empty, isResident);
         }
 
         public AttributeRecord GetImmediateAttributeRecord(AttributeType type, string name)
@@ -200,7 +195,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             }
         }
 
-        public int GetNumberOfBytesInUse(int bytesPerFileRecordSegment, ushort minorNTFSVersion)
+        public int GetNumberOfBytesInUse(int bytesPerFileRecordSegment, byte minorNTFSVersion)
         {
             int length = GetFirstAttributeOffset(bytesPerFileRecordSegment, minorNTFSVersion);
             foreach (AttributeRecord attribute in m_immediateAttributes)
@@ -211,7 +206,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             return length;
         }
 
-        public int GetNumberOfBytesFree(int bytesPerFileRecordSegment, ushort minorNTFSVersion)
+        public int GetNumberOfBytesFree(int bytesPerFileRecordSegment, byte minorNTFSVersion)
         {
             int length = GetNumberOfBytesInUse(bytesPerFileRecordSegment, minorNTFSVersion);
             return bytesPerFileRecordSegment - length;
@@ -254,6 +249,44 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 else
                 {
                     m_flags &= ~FileRecordFlags.IsDirectory;
+                }
+            }
+        }
+
+        public bool IsExtension
+        {
+            get
+            {
+                return (m_flags & FileRecordFlags.IsExtension) != 0;
+            }
+            set
+            {
+                if (value)
+                {
+                    m_flags |= FileRecordFlags.IsExtension;
+                }
+                else
+                {
+                    m_flags &= ~FileRecordFlags.IsExtension;
+                }
+            }
+        }
+
+        public bool IsSpecialIndex
+        {
+            get
+            {
+                return (m_flags & FileRecordFlags.IsSpecialIndex) != 0;
+            }
+            set
+            {
+                if (value)
+                {
+                    m_flags |= FileRecordFlags.IsSpecialIndex;
+                }
+                else
+                {
+                    m_flags &= ~FileRecordFlags.IsSpecialIndex;
                 }
             }
         }
@@ -317,7 +350,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             return (type == AttributesEndMarker);
         }
 
-        public static ushort GetFirstAttributeOffset(int bytesPerFileRecordSegment, ushort minorNTFSVersion)
+        public static ushort GetFirstAttributeOffset(int bytesPerFileRecordSegment, byte minorNTFSVersion)
         {
             int strideCount = bytesPerFileRecordSegment / MultiSectorHelper.BytesPerStride;
             ushort updateSequenceArraySize = (ushort)(1 + strideCount);
@@ -339,7 +372,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             return firstAttributeOffset;
         }
 
-        public static int GetNumberOfBytesAvailable(int bytesPerFileRecordSegment, ushort minorNTFSVersion)
+        public static int GetNumberOfBytesAvailable(int bytesPerFileRecordSegment, byte minorNTFSVersion)
         {
             int firstAttributeOffset = FileRecordSegment.GetFirstAttributeOffset(bytesPerFileRecordSegment, minorNTFSVersion);
             return bytesPerFileRecordSegment - firstAttributeOffset - AttributesEndMarkerLength;

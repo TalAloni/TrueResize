@@ -19,16 +19,16 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         internal const long MasterFileTableSegmentNumber = 0;
         internal const long MftMirrorSegmentNumber = 1;
-        private const long LogFileSegmentNumber = 2;
-        private const long VolumeSegmentNumber = 3;
-        private const long AttrDefSegmentNumber = 4;
-        private const long RootDirSegmentNumber = 5;
-        private const long BitmapSegmentNumber = 6;
-        private const long BootSegmentNumber = 7;
-        private const long BadClusSegmentNumber = 8;
-        private const long SecureSegmentNumber = 9;
-        private const long UpCaseSegmentNumber = 10;
-        private const long ExtendSegmentNumber = 11;
+        internal const long LogFileSegmentNumber = 2;
+        internal const long VolumeSegmentNumber = 3;
+        internal const long AttrDefSegmentNumber = 4;
+        internal const long RootDirSegmentNumber = 5;
+        internal const long BitmapSegmentNumber = 6;
+        internal const long BootSegmentNumber = 7;
+        internal const long BadClusSegmentNumber = 8;
+        internal const long SecureSegmentNumber = 9;
+        internal const long UpCaseSegmentNumber = 10;
+        internal const long ExtendSegmentNumber = 11;
         // The $Extend Metafile is simply a directory index that contains information on where to locate the last four metafiles ($ObjId, $Quota, $Reparse and $UsnJrnl)
         internal static readonly MftSegmentReference LogSegmentReference = new MftSegmentReference(LogFileSegmentNumber, (ushort)LogFileSegmentNumber);
         private static readonly MftSegmentReference VolumeSegmentReference = new MftSegmentReference(VolumeSegmentNumber, (ushort)VolumeSegmentNumber);
@@ -62,14 +62,17 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             {
                 throw new InvalidDataException("Invalid MFT Record, missing Data attribute");
             }
-            AttributeRecord bitmapRecord = m_mftRecord.BitmapRecord;
-            if (bitmapRecord == null)
-            {
-                throw new InvalidDataException("Invalid MFT Record, missing Bitmap attribute");
-            }
             m_mftData = new AttributeData(m_volume, m_mftRecord, dataRecord);
             long numberOfUsableBits = (long)(m_mftData.Length / (uint)m_volume.BytesPerFileRecordSegment);
-            m_mftBitmap = new BitmapData(volume, m_mftRecord, bitmapRecord, numberOfUsableBits);
+            if (!manageMftMirror)
+            {
+                AttributeRecord bitmapRecord = m_mftRecord.BitmapRecord;
+                if (bitmapRecord == null)
+                {
+                    throw new InvalidDataException("Invalid MFT Record, missing Bitmap attribute");
+                }
+                m_mftBitmap = new BitmapData(volume, m_mftRecord, bitmapRecord, numberOfUsableBits);
+            }
             AttributeRecordLengthToMakeNonResident = m_volume.BytesPerFileRecordSegment * 5 / 16; // We immitate the NTFS v5.1 driver
         }
 
@@ -294,7 +297,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                     MftSegmentReference segmentReference;
                     if (baseSegment.SegmentNumber == MasterFileTable.MasterFileTableSegmentNumber)
                     {
-                        segmentReference = AllocateReservedFileRecordSegment();
+                        segmentReference = AllocateReservedFileRecordSegment(transactionID);
                     }
                     else
                     {
@@ -311,7 +314,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 {
                     byte[] undoData = undoDictionary[segment.SegmentReference];
                     ulong streamOffset = (ulong)(segment.SegmentNumber * m_volume.BytesPerFileRecordSegment);
-                    m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], NTFSLogOperation.InitializeFileRecordSegment, undoData, transactionID);
+                    m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, m_volume.BytesPerFileRecordSegment, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], NTFSLogOperation.InitializeFileRecordSegment, undoData, transactionID);
                     DeallocateFileRecordSegment(segment, transactionID);
                     fileRecord.Segments.RemoveAt(segmentIndex);
                     segmentIndex--;
@@ -326,12 +329,12 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 ulong streamOffset = (ulong)(segment.SegmentNumber * m_volume.BytesPerFileRecordSegment);
                 if (undoDictionary.TryGetValue(segment.SegmentReference, out undoData))
                 {
-                    m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, NTFSLogOperation.InitializeFileRecordSegment, redoData, NTFSLogOperation.InitializeFileRecordSegment, undoData, transactionID);
+                    m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, m_volume.BytesPerFileRecordSegment, NTFSLogOperation.InitializeFileRecordSegment, redoData, NTFSLogOperation.InitializeFileRecordSegment, undoData, transactionID);
                 }
                 else
                 {
                     // New segment
-                    m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, NTFSLogOperation.InitializeFileRecordSegment, redoData, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], transactionID);
+                    m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, m_volume.BytesPerFileRecordSegment, NTFSLogOperation.InitializeFileRecordSegment, redoData, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], transactionID);
                 }
                 UpdateFileRecordSegment(segment);
             }
@@ -357,7 +360,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             byte[] baseRecordUndoData = undoDictionary[baseSegment.SegmentReference];
             byte[] baseRecordRedoData = baseSegment.GetBytes(m_volume.BytesPerFileRecordSegment, m_volume.MinorVersion, false);
             ulong baseRecordStreamOffset = (ulong)(baseSegment.SegmentNumber * m_volume.BytesPerFileRecordSegment);
-            m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, baseRecordStreamOffset, NTFSLogOperation.InitializeFileRecordSegment, baseRecordRedoData, NTFSLogOperation.InitializeFileRecordSegment, baseRecordUndoData, transactionID);
+            m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, baseRecordStreamOffset, m_volume.BytesPerFileRecordSegment, NTFSLogOperation.InitializeFileRecordSegment, baseRecordRedoData, NTFSLogOperation.InitializeFileRecordSegment, baseRecordUndoData, transactionID);
             UpdateFileRecordSegment(baseSegment);
         }
 
@@ -388,7 +391,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             // UpdateFileRecord() expects the base segment to be present on disk
             byte[] redoData = fileRecordSegment.GetBytes(m_volume.BytesPerFileRecordSegment, m_volume.MinorVersion, false);
             ulong streamOffset = (ulong)(fileRecordSegment.SegmentNumber * m_volume.BytesPerFileRecordSegment);
-            m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, NTFSLogOperation.InitializeFileRecordSegment, redoData, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], transactionID);
+            m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, m_volume.BytesPerFileRecordSegment, NTFSLogOperation.InitializeFileRecordSegment, redoData, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], transactionID);
             UpdateFileRecordSegment(fileRecordSegment);
 
             fileRecordSegment.ReferenceCount = (ushort)fileNameRecords.Count; // Each FileNameRecord is about to be indexed
@@ -413,7 +416,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             {
                 string indexName = IndexHelper.GetIndexName(AttributeType.FileName);
                 IndexRootRecord indexRoot = (IndexRootRecord)fileRecord.CreateAttributeRecord(AttributeType.IndexRoot, indexName);
-                IndexHelper.InitializeIndexRoot(indexRoot, AttributeType.FileName, m_volume.BytesPerIndexRecord, m_volume.BytesPerCluster);
+                IndexHelper.InitializeIndexRoot(indexRoot, AttributeType.FileName, CollationRule.Filename, m_volume.BytesPerIndexRecord, m_volume.BytesPerCluster);
             }
             else
             {
@@ -431,14 +434,14 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             {
                 byte[] undoData = GetFileRecordSegment(segment.SegmentNumber).GetBytes(m_volume.BytesPerFileRecordSegment, m_volume.MinorVersion, false);
                 ulong streamOffset = (ulong)(segment.SegmentNumber * m_volume.BytesPerFileRecordSegment);
-                m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], NTFSLogOperation.InitializeFileRecordSegment, undoData, transactionID);
+                m_volume.LogClient.WriteLogRecord(m_mftRecord.BaseSegmentReference, m_mftRecord.DataRecord, streamOffset, m_volume.BytesPerFileRecordSegment, NTFSLogOperation.DeallocateFileRecordSegment, new byte[0], NTFSLogOperation.InitializeFileRecordSegment, undoData, transactionID);
                 DeallocateFileRecordSegment(segment, transactionID);
             }
         }
 
-        private MftSegmentReference AllocateReservedFileRecordSegment()
+        private MftSegmentReference AllocateReservedFileRecordSegment(uint transactionID)
         {
-            long? segmentNumber = m_mftBitmap.AllocateRecord(FirstReservedSegmentNumber, FirstUserSegmentNumber - 1);
+            long? segmentNumber = m_mftBitmap.AllocateRecord(FirstReservedSegmentNumber, FirstUserSegmentNumber - 1, transactionID);
             if (!segmentNumber.HasValue)
             {
                 throw new DiskFullException();

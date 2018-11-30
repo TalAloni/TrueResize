@@ -177,8 +177,8 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             WriteIndexRecord(childRecordIndex, childRecord);
 
             IndexEntry rootEntry = new IndexEntry();
-            rootEntry.SubnodeVBN = childRecord.RecordVBN;
             rootEntry.ParentNodeForm = true;
+            rootEntry.SubnodeVBN = childRecord.RecordVBN;
 
             m_rootRecord.IndexEntries.Clear();
             m_rootRecord.IsParentNode = true;
@@ -545,7 +545,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             // TODO: We may truncate the IndexAllocation attribute data and bitmap
         }
 
-        private IndexRecord ReadIndexRecord(long subnodeVBN)
+        internal IndexRecord ReadIndexRecord(long subnodeVBN)
         {
             long sectorIndex = ConvertToSectorIndex(subnodeVBN);
             byte[] recordBytes = m_indexAllocationData.ReadSectors(sectorIndex, this.SectorsPerIndexRecord);
@@ -572,6 +572,19 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             else
             {
                 return recordVBN * IndexRecord.BytesPerIndexRecordBlock / m_volume.BytesPerSector;
+            }
+        }
+
+        internal long ConvertToDataOffset(long recordVBN)
+        {
+            if (m_rootRecord.BytesPerIndexRecord >= m_volume.BytesPerCluster)
+            {
+                // The VBN is a VCN
+                return recordVBN * m_volume.BytesPerCluster;
+            }
+            else
+            {
+                return recordVBN * IndexRecord.BytesPerIndexRecordBlock;
             }
         }
 

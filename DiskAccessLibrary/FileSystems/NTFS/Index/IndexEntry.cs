@@ -73,6 +73,13 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             }
         }
 
+        public byte[] GetBytes()
+        {
+            byte[] buffer = new byte[Length];
+            WriteBytes(buffer, 0);
+            return buffer;
+        }
+
         public bool IsLastEntry
         {
             get
@@ -137,6 +144,16 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             if (entries.Count == 0 || !entries[entries.Count - 1].ParentNodeForm)
             {
                 length += FixedLength;
+            }
+            return length;
+        }
+
+        internal static int GetEntryOffset(List<IndexEntry> entries, int entryIndex)
+        {
+            int length = 0;
+            for(int index = 0; index < entryIndex; index++)
+            {
+                length += entries[index].Length;
             }
             return length;
         }

@@ -33,7 +33,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         /// <remarks>
         /// https://blogs.technet.microsoft.com/askcore/2009/10/16/the-four-stages-of-ntfs-file-growth/
         /// </remarks>
-        public void UpdateSegments(int bytesPerFileRecordSegment, ushort minorNTFSVersion)
+        public void UpdateSegments(int bytesPerFileRecordSegment, byte minorNTFSVersion)
         {
             List<AttributeRecord> attributes = this.Attributes;
 
@@ -84,7 +84,8 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public AttributeRecord CreateAttributeRecord(AttributeType type, string name)
         {
-            AttributeRecord attribute = AttributeRecord.Create(type, name, m_segments[0].NextAttributeInstance);
+            bool isResident = (type != AttributeType.IndexAllocation);
+            AttributeRecord attribute = AttributeRecord.Create(type, name, m_segments[0].NextAttributeInstance, isResident);
             m_segments[0].NextAttributeInstance++;
             FileRecordHelper.InsertSorted(this.Attributes, attribute);
             return attribute;
