@@ -171,7 +171,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         {
             IndexRecord childRecord = new IndexRecord();
             childRecord.IsParentNode = m_rootRecord.IsParentNode;
-            childRecord.IndexEntries = new List<IndexEntry>(m_rootRecord.IndexEntries);
+            childRecord.IndexEntries.AddRange(m_rootRecord.IndexEntries);
             long childRecordIndex = AllocateIndexRecord();
             childRecord.RecordVBN = ConvertToVirtualBlockNumber(childRecordIndex);
             WriteIndexRecord(childRecordIndex, childRecord);
@@ -299,7 +299,14 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                     if (leaf.IndexEntries.Count == 0)
                     {
                         int indexOfLeafPointer = pathToLeaf[pathToLeaf.Count - 1].Key;
-                        RemovePointer(pathToLeaf.GetRange(0, pathToLeaf.Count - 1), indexOfLeafPointer);
+                        if (pathToLeaf.Count > 1)
+                        {
+                            RemovePointer(pathToLeaf.GetRange(0, pathToLeaf.Count - 1), indexOfLeafPointer);
+                        }
+                        else
+                        {
+                            RemovePointerFromRoot(indexOfLeafPointer);
+                        }
                         DeallocateIndexRecord(leafRecordIndex);
                     }
                 }

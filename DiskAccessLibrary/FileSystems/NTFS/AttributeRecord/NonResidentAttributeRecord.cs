@@ -33,7 +33,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         // ulong TotalAllocated;      // Presented for the first file record of a compressed stream.
         private DataRunSequence m_dataRunSequence;
 
-        public NonResidentAttributeRecord(AttributeType attributeType, string name, ushort instance) : base(attributeType, name, false, instance)
+        public NonResidentAttributeRecord(AttributeType attributeType, string name) : base(attributeType, name, false)
         {
             HighestVCN = -1; // This is the value that should be set when the attribute contains no data.
             m_dataRunSequence = new DataRunSequence();
@@ -87,6 +87,13 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             return sequence;
         }
 
+        public override AttributeRecord Clone()
+        {
+            NonResidentAttributeRecord clone = (NonResidentAttributeRecord)this.MemberwiseClone();
+            clone.m_dataRunSequence = m_dataRunSequence.Clone();
+            return clone;
+        }
+
         /// <summary>
         /// Each attribute record must be aligned to 8-byte boundary, so RecordLength must be a multiple of 8.
         /// When reading attributes, they may contain additional padding,
@@ -129,7 +136,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             }
         }
 
-        public static NonResidentAttributeRecord Create(AttributeType type, string name, ushort instance)
+        public static NonResidentAttributeRecord Create(AttributeType type, string name)
         {
             switch (type)
             {
@@ -144,9 +151,9 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 case AttributeType.IndexRoot:
                     throw new ArgumentException("IndexRoot attribute is always resident");
                 case AttributeType.IndexAllocation:
-                    return new IndexAllocationRecord(name, instance);
+                    return new IndexAllocationRecord(name);
                 default:
-                    return new NonResidentAttributeRecord(type, name, instance);
+                    return new NonResidentAttributeRecord(type, name);
             }
         }
     }

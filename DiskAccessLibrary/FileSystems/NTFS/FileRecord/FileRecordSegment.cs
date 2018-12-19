@@ -17,7 +17,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
     /// <remarks>
     /// Attributes MUST be ordered by increasing attribute type code when written to disk.
     /// </remarks>
-    public class FileRecordSegment
+    internal class FileRecordSegment
     {
         private const string ValidSignature = "FILE";
         private const int NTFS30UpdateSequenceArrayOffset = 0x2A; // NTFS v3.0 and earlier (up to Windows 2000)
@@ -159,7 +159,8 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         internal AttributeRecord CreateAttributeRecord(AttributeType type, string name, bool isResident)
         {
-            AttributeRecord attribute = AttributeRecord.Create(type, name, NextAttributeInstance, isResident);
+            AttributeRecord attribute = AttributeRecord.Create(type, name, isResident);
+            attribute.Instance = NextAttributeInstance;
             NextAttributeInstance++;
             FileRecordHelper.InsertSorted(m_immediateAttributes, attribute);
             return attribute;
@@ -181,6 +182,16 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// This method should only be used to add attributes that have already been sorted
+        /// </summary>
+        public void AddAttributeRecord(AttributeRecord attribute)
+        {
+            attribute.Instance = NextAttributeInstance;
+            NextAttributeInstance++;
+            ImmediateAttributes.Add(attribute);
         }
 
         public void RemoveAttributeRecord(AttributeType type, string name)

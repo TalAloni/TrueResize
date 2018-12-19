@@ -213,7 +213,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                     {
                         throw new DiskFullException();
                     }
-                    NonResidentAttributeRecord attributeRecord = NonResidentAttributeRecord.Create(m_attributeRecord.AttributeType, m_attributeRecord.Name, m_attributeRecord.Instance);
+                    NonResidentAttributeRecord attributeRecord = NonResidentAttributeRecord.Create(m_attributeRecord.AttributeType, m_attributeRecord.Name);
                     NonResidentAttributeData attributeData = new NonResidentAttributeData(m_volume, null, attributeRecord);
                     attributeData.Extend(finalDataLength);
                     attributeData.WriteClusters(0, data);
@@ -221,7 +221,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                     if (m_fileRecord != null)
                     {
                         m_fileRecord.RemoveAttributeRecord(m_attributeRecord.AttributeType, m_attributeRecord.Name);
-                        m_fileRecord.Attributes.Add(attributeRecord);
+                        FileRecordHelper.InsertSorted(m_fileRecord.Attributes, attributeRecord);
                     }
                     m_attributeRecord = attributeRecord;
                 }

@@ -18,7 +18,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
     {
         public FileNameRecord Record;
 
-        public FileNameAttributeRecord(string name, ushort instance) : base(AttributeType.FileName, name, instance)
+        public FileNameAttributeRecord(string name) : base(AttributeType.FileName, name)
         {
         }
 
@@ -32,6 +32,13 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             this.Data = Record.GetBytes();
 
             return base.GetBytes();
+        }
+
+        public override AttributeRecord Clone()
+        {
+            FileNameAttributeRecord clone = (FileNameAttributeRecord)base.Clone();
+            clone.Record = this.Record.Clone();
+            return clone;
         }
 
         public override ulong DataLength
