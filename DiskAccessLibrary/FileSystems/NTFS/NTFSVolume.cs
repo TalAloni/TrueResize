@@ -32,7 +32,8 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         private object m_mftLock = new object(); // We use this lock to synchronize MFT and directory indexes operations (and their associated logging operations)
         private object m_bitmapLock = new object();
         private VolumeInformationRecord m_volumeInformation;
-        private readonly bool m_generateDosNames = false;
+        private readonly bool GenerateDosNames = false;
+        private readonly int NumberOfClustersRequiredToExtendIndex;
 
         public NTFSVolume(Volume volume) : this(volume, false)
         { 
@@ -63,6 +64,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             m_logFile = new LogFile(this);
             m_logClient = new NTFSLogClient(m_logFile);
             m_bitmap = new VolumeBitmap(this);
+            NumberOfClustersRequiredToExtendIndex = (int)Math.Ceiling((double)(IndexData.ExtendGranularity * m_bootRecord.BytesPerIndexRecord) / m_bootRecord.BytesPerCluster);
         }
 
         public virtual FileRecord GetFileRecord(string path)
@@ -132,8 +134,14 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public virtual FileRecord CreateFile(MftSegmentReference parentDirectory, string fileName, bool isDirectory)
         {
-            // Worst case scenrario: the MFT might be full and the parent directory index requires multiple splits
-            if (NumberOfFreeClusters < m_mft.NumberOfClustersRequiredToExtend + 8)
+            if (fileName.Length > FileNameRecord.MaxFileNameLength)
+            {
+                throw new InvalidNameException();
+            }
+
+            // Worst case scenrario: the MFT might be full and the parent directory index requires multiple splits.
+            // We assume IndexData.ExtendGranularity is bigger than or equal to the number of splits.
+            if (NumberOfFreeClusters < m_mft.NumberOfClustersRequiredToExtend + NumberOfClustersRequiredToExtendIndex)
             {
                 throw new DiskFullException();
             }
@@ -148,7 +156,7 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                     throw new AlreadyExistsException();
                 }
 
-                List<FileNameRecord> fileNameRecords = IndexHelper.GenerateFileNameRecords(parentDirectory, fileName, isDirectory, m_generateDosNames, parentDirectoryIndex);
+                List<FileNameRecord> fileNameRecords = IndexHelper.GenerateFileNameRecords(parentDirectory, fileName, isDirectory, GenerateDosNames, parentDirectoryIndex);
                 uint transactionID = m_logClient.AllocateTransactionID();
                 FileRecord fileRecord = m_mft.CreateFile(fileNameRecords, transactionID);
 
@@ -191,8 +199,9 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
         public virtual void MoveFile(FileRecord fileRecord, MftSegmentReference newParentDirectory, string newFileName)
         {
-            // Worst case scenrario: the new parent directory index requires multiple splits
-            if (NumberOfFreeClusters < 8)
+            // Worst case scenrario: the new parent directory index requires multiple splits.
+            // We assume IndexData.ExtendGranularity is bigger than or equal to the number of splits.
+            if (NumberOfFreeClusters < NumberOfClustersRequiredToExtendIndex)
             {
                 throw new DiskFullException();
             }
@@ -210,10 +219,11 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 {
                     FileRecord newParentDirectoryRecord = GetFileRecord(newParentDirectory);
                     newParentDirectoryIndex = new IndexData(this, newParentDirectoryRecord, AttributeType.FileName);
-                    if (newParentDirectoryIndex.ContainsFileName(newFileName))
-                    {
-                        throw new AlreadyExistsException();
-                    }
+                }
+
+                if (newParentDirectoryIndex.ContainsFileName(newFileName))
+                {
+                    throw new AlreadyExistsException();
                 }
 
                 List<FileNameRecord> fileNameRecords = fileRecord.FileNameRecords;
@@ -229,10 +239,12 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 DateTime mftModificationTime = fileRecord.StandardInformation.MftModificationTime;
                 DateTime lastAccessTime = fileRecord.StandardInformation.LastAccessTime;
                 ulong allocatedLength = fileRecord.FileNameRecord.AllocatedLength;
-                ulong fileSize = fileRecord.FileNameRecord.FileSize;
                 FileAttributes fileAttributes = fileRecord.StandardInformation.FileAttributes;
                 ushort packedEASize = fileRecord.FileNameRecord.PackedEASize;
-                fileNameRecords = IndexHelper.GenerateFileNameRecords(newParentDirectory, newFileName, fileRecord.IsDirectory, m_generateDosNames, newParentDirectoryIndex, creationTime, modificationTime, mftModificationTime, lastAccessTime, allocatedLength, fileSize, fileAttributes, packedEASize);
+                // Windows NTFS v5.1 driver does not usually update the value of the FileSize field belonging to the FileNameRecords that are stored in the FileRecord.
+                // The driver does update the value during a rename, which is inconsistent file creation and is likely to be incidental rather than intentional.
+                // We will set the value to 0 to be consistent with file creation.
+                fileNameRecords = IndexHelper.GenerateFileNameRecords(newParentDirectory, newFileName, fileRecord.IsDirectory, GenerateDosNames, newParentDirectoryIndex, creationTime, modificationTime, mftModificationTime, lastAccessTime, allocatedLength, 0, fileAttributes, packedEASize);
                 fileRecord.RemoveAttributeRecords(AttributeType.FileName, String.Empty);
                 foreach (FileNameRecord fileNameRecord in fileNameRecords)
                 {
@@ -244,6 +256,10 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
                 foreach (FileNameRecord fileNameRecord in fileNameRecords)
                 {
+                    if (!fileRecord.IsDirectory)
+                    {
+                        fileNameRecord.FileSize = fileRecord.DataRecord.DataLength;
+                    }
                     newParentDirectoryIndex.AddEntry(fileRecord.BaseSegmentReference, fileNameRecord.GetBytes());
                 }
                 m_logClient.WriteForgetTransactionRecord(transactionID);
@@ -557,6 +573,14 @@ namespace DiskAccessLibrary.FileSystems.NTFS
             get
             {
                 return m_mft.AttributeRecordLengthToMakeNonResident;
+            }
+        }
+
+        internal long NumberOfClustersRequiredToExtendMft
+        {
+            get
+            {
+                return m_mft.NumberOfClustersRequiredToExtend;
             }
         }
 

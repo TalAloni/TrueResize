@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2018 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
+/* Copyright (C) 2014-2019 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
  * 
  * You can redistribute this program and/or modify it under the terms of
  * the GNU Lesser Public License as published by the Free Software Foundation,
@@ -66,6 +66,14 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 if (fileRecord == null)
                 {
                     fileRecord = m_volume.CreateFile(parentDirectoryRecord.BaseSegmentReference, fileName, false);
+                }
+                else
+                {
+                    // We might need to allocate an additional FileRecordSegment so we have to make sure we can extend the MFT if it is full
+                    if (m_volume.NumberOfFreeClusters < m_volume.NumberOfClustersRequiredToExtendMft)
+                    {
+                        throw new DiskFullException();
+                    }
                 }
                 fileRecord.CreateAttributeRecord(AttributeType.Data, streamName);
                 m_volume.UpdateFileRecord(fileRecord);
@@ -193,6 +201,11 @@ namespace DiskAccessLibrary.FileSystems.NTFS
 
                     if (streamName != String.Empty && dataRecord == null)
                     {
+                        // We might need to allocate an additional FileRecordSegment so we have to make sure we can extend the MFT if it is full
+                        if (m_volume.NumberOfFreeClusters < m_volume.NumberOfClustersRequiredToExtendMft)
+                        {
+                            throw new DiskFullException();
+                        }
                         fileRecord.CreateAttributeRecord(AttributeType.Data, streamName);
                         m_volume.UpdateFileRecord(fileRecord);
                     }
@@ -373,6 +386,15 @@ namespace DiskAccessLibrary.FileSystems.NTFS
                 fileNameRecord.MftModificationTime = DateTime.Now;
             }
             m_volume.UpdateFileRecord(fileRecord);
+            if (!fileRecord.IsDirectory)
+            {
+                // Windows NTFS v5.1 driver does not usually update the value of the FileSize field belonging
+                // to the FileNameRecords that are stored in the FileRecord, it is likely to be 0.
+                foreach (FileNameRecord fileNameRecord in fileNameRecords)
+                {
+                    fileNameRecord.FileSize = fileRecord.DataRecord.DataLength;
+                }
+            }
             m_volume.UpdateDirectoryIndex(fileRecord.ParentDirectoryReference, fileNameRecords);
         }
 
