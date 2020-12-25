@@ -83,28 +83,21 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DiskAccessLibrary\DiskAccessLibrary.csproj">
+    <ProjectReference Include="..\DiskAccessLibrary\DiskAccessLibrary.VS2005.csproj">
       <Project>{000D0367-63A1-475D-982D-67A0B93BABEB}</Project>
-      <Name>DiskAccessLibrary</Name>
+      <Name>DiskAccessLibrary.VS2005</Name>
     </ProjectReference>
     <ProjectReference Include="..\TrueCryptLibrary\TrueCryptLibrary.csproj">
       <Project>{61C423FB-4591-4C2F-9FC9-B394F6425E3B}</Project>
       <Name>TrueCryptLibrary</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Utilities\Utilities.csproj">
+    <ProjectReference Include="..\Utilities\Utilities.VS2005.csproj">
       <Project>{6E0F2D1E-6167-4032-BA90-DEE3A99207D0}</Project>
-      <Name>Utilities</Name>
+      <Name>Utilities.VS2005</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icons\LockedFile.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>

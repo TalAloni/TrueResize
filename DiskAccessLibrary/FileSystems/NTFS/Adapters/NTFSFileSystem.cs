@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2019 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
+/* Copyright (C) 2014-2020 Tal Aloni <tal.aloni.il@gmail.com>. All rights reserved.
  * 
  * You can redistribute this program and/or modify it under the terms of
  * the GNU Lesser Public License as published by the Free Software Foundation,
@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using DiskAccessLibrary.FileSystems.Abstractions;
 using Utilities;
 
 namespace DiskAccessLibrary.FileSystems.NTFS
@@ -19,9 +20,9 @@ namespace DiskAccessLibrary.FileSystems.NTFS
         private NTFSVolume m_volume;
         private Dictionary<long, List<NTFSFileStream>> m_openStreams = new Dictionary<long, List<NTFSFileStream>>();
 
-        public NTFSFileSystem(Volume volume)
+        public NTFSFileSystem(Volume volume, bool isReadOnly)
         {
-            m_volume = new NTFSVolume(volume);
+            m_volume = new NTFSVolume(volume, isReadOnly);
         }
 
         public NTFSFileSystem(NTFSVolume volume)
