@@ -5,9 +5,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskAccessLibrary.FileSyste
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskAccessLibrary.VS2005", "DiskAccessLibrary\DiskAccessLibrary.VS2005.csproj", "{000D0367-63A1-475D-982D-67A0B93BABEB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueCryptLibrary", "TrueCryptLibrary\TrueCryptLibrary.csproj", "{61C423FB-4591-4C2F-9FC9-B394F6425E3B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueCryptLibrary.VS2005", "TrueCryptLibrary\TrueCryptLibrary.VS2005.csproj", "{61C423FB-4591-4C2F-9FC9-B394F6425E3B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueResize", "TrueResize\TrueResize.csproj", "{D874EE87-719A-44EF-8029-76141336FB25}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueResize.VS2005", "TrueResize\TrueResize.VS2005.csproj", "{D874EE87-719A-44EF-8029-76141336FB25}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.VS2005", "Utilities\Utilities.VS2005.csproj", "{6E0F2D1E-6167-4032-BA90-DEE3A99207D0}"
 EndProject

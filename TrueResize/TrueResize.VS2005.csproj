@@ -87,9 +87,9 @@
       <Project>{000D0367-63A1-475D-982D-67A0B93BABEB}</Project>
       <Name>DiskAccessLibrary.VS2005</Name>
     </ProjectReference>
-    <ProjectReference Include="..\TrueCryptLibrary\TrueCryptLibrary.csproj">
+    <ProjectReference Include="..\TrueCryptLibrary\TrueCryptLibrary.VS2005.csproj">
       <Project>{61C423FB-4591-4C2F-9FC9-B394F6425E3B}</Project>
-      <Name>TrueCryptLibrary</Name>
+      <Name>TrueCryptLibrary.VS2005</Name>
     </ProjectReference>
     <ProjectReference Include="..\Utilities\Utilities.VS2005.csproj">
       <Project>{6E0F2D1E-6167-4032-BA90-DEE3A99207D0}</Project>
