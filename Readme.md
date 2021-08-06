@@ -10,7 +10,7 @@ What this program can do:
 - Hidden volumes are NOT supported.  
 - The FAT filesystem is not supported.  
 
-!TrueResize UI](TrueResize_UI_1.png)!TrueResize UI](TrueResize_UI_3.png)
+![TrueResize UI](TrueResize_UI_1.png)![TrueResize UI](TrueResize_UI_3.png)
 
 Warning:
 ========
