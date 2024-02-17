@@ -16,7 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DiskAccessLibrary\DiskAccessLibrary.csproj" />
     <ProjectReference Include="..\TrueCryptLibrary\TrueCryptLibrary.csproj" />
     <ProjectReference Include="..\Utilities\Utilities.csproj" />
   </ItemGroup>
