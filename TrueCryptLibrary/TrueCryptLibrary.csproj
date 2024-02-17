@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net20;net40</TargetFrameworks>
+    <OutputType>Library</OutputType>
+    <Authors>Tal Aloni</Authors>
+    <Copyright>Copyright © Tal Aloni 2012-2024</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DiskAccessLibrary\DiskAccessLibrary.csproj" />
+    <ProjectReference Include="..\Utilities\Utilities.csproj" />
+  </ItemGroup>
+</Project>

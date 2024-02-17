@@ -1,15 +1,17 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual Studio 2005
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskAccessLibrary.FileSystems.Abstractions.VS2005", "DiskAccessLibrary.FileSystems.Abstractions\DiskAccessLibrary.FileSystems.Abstractions.VS2005.csproj", "{9119EC7E-AF78-4814-BF03-F3823A29A471}"
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33829.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskAccessLibrary.FileSystems.Abstractions", "DiskAccessLibrary.FileSystems.Abstractions\DiskAccessLibrary.FileSystems.Abstractions.csproj", "{9119EC7E-AF78-4814-BF03-F3823A29A471}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskAccessLibrary.VS2005", "DiskAccessLibrary\DiskAccessLibrary.VS2005.csproj", "{000D0367-63A1-475D-982D-67A0B93BABEB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiskAccessLibrary", "DiskAccessLibrary\DiskAccessLibrary.csproj", "{000D0367-63A1-475D-982D-67A0B93BABEB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueCryptLibrary.VS2005", "TrueCryptLibrary\TrueCryptLibrary.VS2005.csproj", "{61C423FB-4591-4C2F-9FC9-B394F6425E3B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueCryptLibrary", "TrueCryptLibrary\TrueCryptLibrary.csproj", "{61C423FB-4591-4C2F-9FC9-B394F6425E3B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueResize.VS2005", "TrueResize\TrueResize.VS2005.csproj", "{D874EE87-719A-44EF-8029-76141336FB25}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrueResize", "TrueResize\TrueResize.csproj", "{D874EE87-719A-44EF-8029-76141336FB25}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities.VS2005", "Utilities\Utilities.VS2005.csproj", "{6E0F2D1E-6167-4032-BA90-DEE3A99207D0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utilities", "Utilities\Utilities.csproj", "{6E0F2D1E-6167-4032-BA90-DEE3A99207D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,5 +42,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BBC23730-7554-422D-9AA4-A6BA05E72CA3}
 	EndGlobalSection
 EndGlobal
